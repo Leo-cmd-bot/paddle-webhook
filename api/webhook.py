@@ -88,3 +88,10 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b'ok')
+
+if __name__ == "__main__":
+    from http.server import HTTPServer
+    port = int(os.environ.get("PORT", 8000))
+    server = HTTPServer(("0.0.0.0", port), handler)
+    print(f"Listening on 0.0.0.0:{port}")
+    server.serve_forever()
