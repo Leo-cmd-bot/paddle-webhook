@@ -41,40 +41,41 @@ class handler(BaseHTTPRequestHandler):
         content_length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(content_length)
         sig = self.headers.get('Paddle-Signature', '')
+        
         if not verify_signature(body, sig):
             self.send_response(403)
             self.end_headers()
             self.wfile.write(b'Invalid signature')
             return
-
+        
         try:
             data = json.loads(body)
         except:
             self.send_response(400)
             self.end_headers()
             return
-
+        
         if data.get('event_type') != 'transaction.completed':
             self.send_response(200)
             self.end_headers()
             return
-
+        
         custom = data.get('data', {}).get('custom_data', {})
         email = custom.get('email', '').strip()
         quota_to_add = int(custom.get('quota', 0))
-
+        
         if not email or quota_to_add <= 0:
             self.send_response(400)
             self.end_headers()
             return
-
+        
         user_id, current_quota = find_user_by_email(email)
         if user_id is None:
             self.send_response(404)
             self.end_headers()
             self.wfile.write(f'User {email} not found'.encode())
             return
-
+        
         if update_user_quota(user_id, current_quota + quota_to_add):
             self.send_response(200)
             self.end_headers()
@@ -83,8 +84,9 @@ class handler(BaseHTTPRequestHandler):
             self.send_response(500)
             self.end_headers()
             self.wfile.write(b'Update failed')
-
+    
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b'ok')
+
