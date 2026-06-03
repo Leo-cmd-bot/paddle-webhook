@@ -1,0 +1,9 @@
+{
+  "build": {
+    "builder": "railpack"
+  },
+  "deploy": {
+    "startCommand": "python webhook.py"
+  }
+}
+
