@@ -1,8 +1,8 @@
 import os, json, hmac, hashlib, requests
 from http.server import BaseHTTPRequestHandler
 
-ONEAPI_URL = os.environ['ONEAPI_URL'].rstrip('/')
-ONEAPI_TOKEN = os.environ['ONEAPI_TOKEN']
+ONEAPI_URL = os.environ.get('ONEAPI_URL', '').rstrip('/')
+ONEAPI_TOKEN = os.environ.get('ONEAPI_TOKEN', '')
 PADDLE_SECRET = os.environ.get('PADDLE_SECRET', '')
 
 def verify_signature(body, signature):
@@ -88,3 +88,11 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b'ok')
+
+if __name__ == "__main__":
+    from http.server import HTTPServer
+    port = int(os.environ.get("PORT", 8000))
+    server = HTTPServer(("0.0.0.0", port), handler)
+    print(f"Listening on 0.0.0.0:{port}")
+    server.serve_forever()
+
