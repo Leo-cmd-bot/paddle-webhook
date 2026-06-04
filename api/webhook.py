@@ -1,8 +1,8 @@
-import os, json, hmac, hashlib, requests
+import os, json, hmac, hashlib, requests, logging
 from http.server import BaseHTTPRequestHandler
 
-ONEAPI_URL = os.environ['ONEAPI_URL'].rstrip('/')
-ONEAPI_TOKEN = os.environ['ONEAPI_TOKEN']
+ONEAPI_URL = os.environ.get('ONEAPI_URL', '').rstrip('/')
+ONEAPI_TOKEN = os.environ.get('ONEAPI_TOKEN', '')
 PADDLE_SECRET = os.environ.get('PADDLE_SECRET', '')
 
 def verify_signature(body, signature):
@@ -12,29 +12,46 @@ def verify_signature(body, signature):
     return hmac.compare_digest(computed, signature)
 
 def find_user_by_email(email):
-    resp = requests.get(
-        f"{ONEAPI_URL}/api/user/",
-        headers={"Authorization": f"Bearer {ONEAPI_TOKEN}"},
-        params={"page": 1, "size": 100}
-    )
-    if resp.status_code != 200:
+    if not ONEAPI_URL or not ONEAPI_TOKEN:
+        logging.error("find_user_by_email: ONEAPI_URL or ONEAPI_TOKEN is not set")
         return None, 0
-    users = resp.json().get("data", [])
-    for u in users:
-        if u.get("email") == email:
-            return u["id"], u.get("quota", 0)
-    return None, 0
+    try:
+        resp = requests.get(
+            f"{ONEAPI_URL}/api/user/",
+            headers={"Authorization": f"Bearer {ONEAPI_TOKEN}"},
+            params={"page": 1, "size": 100},
+            timeout=5
+        )
+        if resp.status_code != 200:
+            logging.error("find_user_by_email: unexpected status %s", resp.status_code)
+            return None, 0
+        users = resp.json().get("data", [])
+        for u in users:
+            if u.get("email") == email:
+                return u["id"], u.get("quota", 0)
+        return None, 0
+    except requests.exceptions.RequestException as e:
+        logging.error("find_user_by_email: request failed: %s", e)
+        return None, 0
 
 def update_user_quota(user_id, new_quota):
-    resp = requests.put(
-        f"{ONEAPI_URL}/api/user/{user_id}",
-        headers={
-            "Authorization": f"Bearer {ONEAPI_TOKEN}",
-            "Content-Type": "application/json"
-        },
-        json={"quota": new_quota}
-    )
-    return resp.status_code == 200
+    if not ONEAPI_URL or not ONEAPI_TOKEN:
+        logging.error("update_user_quota: ONEAPI_URL or ONEAPI_TOKEN is not set")
+        return False
+    try:
+        resp = requests.put(
+            f"{ONEAPI_URL}/api/user/{user_id}",
+            headers={
+                "Authorization": f"Bearer {ONEAPI_TOKEN}",
+                "Content-Type": "application/json"
+            },
+            json={"quota": new_quota},
+            timeout=5
+        )
+        return resp.status_code == 200
+    except requests.exceptions.RequestException as e:
+        logging.error("update_user_quota: request failed: %s", e)
+        return False
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
